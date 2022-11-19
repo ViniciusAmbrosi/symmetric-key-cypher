@@ -41,7 +41,7 @@ public class App
         //apply cypher with fileByteArray && cypherKey
         SymmetricCipher symmetricCipher = new SymmetricCipher();
 
-        var encryptResult = symmetricCipher.Encrypt();
+        var encryptResult = symmetricCipher.Encrypt(fileByteArray);
         FILE_UTILS_WRAPPER.WriteByteArrayToFile("encryptResult", encryptResult);
 
         var decryptResult = symmetricCipher.Decrypt();
