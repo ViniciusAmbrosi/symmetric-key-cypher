@@ -14,7 +14,7 @@ public class FileUtilsWrapper {
         try
         {
             FileUtils.write(
-                    new File("C:\\Project\\encoder\\encoder\\resources\\" + fileName),
+                    new File("C:\\Project\\teoria-informacao\\symmetric-key-cypher\\symmetric-key-cypher\\resources\\" + fileName),
                     content,
                     StandardCharsets.UTF_8);
         }
@@ -28,7 +28,7 @@ public class FileUtilsWrapper {
         try
         {
             FileUtils.writeByteArrayToFile(
-                    new File("C:\\Project\\encoder\\encoder\\resources\\" + fileName),
+                    new File("C:\\Project\\teoria-informacao\\symmetric-key-cypher\\symmetric-key-cypher\\resources\\" + fileName),
                     content);
         }
         catch(Exception e)

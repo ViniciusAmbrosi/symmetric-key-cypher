@@ -1,6 +1,7 @@
 package unisinos.com.br;
 
 import org.apache.commons.lang3.StringUtils;
+import unisinos.com.br.cipher.SymmetricCipher;
 import unisinos.com.br.file.FileUtilsWrapper;
 
 public class App
@@ -20,9 +21,9 @@ public class App
             System.out.println("No file path provided. Halting execution.");
             return;
         }
-        if(args.length < 2 || StringUtils.isEmpty(args[1]))
+        if(args.length < 2 || StringUtils.isEmpty(args[1]) || args[1].length() != 4)
         {
-            System.out.println("Cypher key is either too big or was not provided, using " + DEFAULT_CYPHER_KEY + " instead.");
+            System.out.println("Cypher key is either invalid or was not provided, using " + DEFAULT_CYPHER_KEY + " instead.");
         }
         else
         {
@@ -38,7 +39,12 @@ public class App
         }
 
         //apply cypher with fileByteArray && cypherKey
+        SymmetricCipher symmetricCipher = new SymmetricCipher();
 
+        var encryptResult = symmetricCipher.Encrypt();
+        FILE_UTILS_WRAPPER.WriteByteArrayToFile("encryptResult", encryptResult);
 
+        var decryptResult = symmetricCipher.Decrypt();
+        FILE_UTILS_WRAPPER.WriteToFile("decryptResult", decryptResult);
     }
 }
