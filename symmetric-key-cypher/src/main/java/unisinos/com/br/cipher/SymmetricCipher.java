@@ -77,20 +77,19 @@ public class SymmetricCipher {
         return bytesOutput.toByteArray();
     }
 
-    public byte[] Decrypt(String file) throws IOException
+    public byte[] Decrypt(byte[] encryptedFileByteArray) throws IOException
     {
         ByteArrayOutputStream bytesOutput = new ByteArrayOutputStream();
         try(var bitOutputStream = new DefaultBitOutputStream(bytesOutput))
         {
-            ByteArrayInputStream byteArray = new ByteArrayInputStream(Files.readAllBytes(Paths.get(file)));
+            ByteArrayInputStream byteArray = new ByteArrayInputStream(encryptedFileByteArray);
             try(var bitInputStream = new DefaultBitInputStream(byteArray))
             {
                 int paddingAmount = cipherPaddingHandler.ProcessPaddingForDecryption(bitInputStream);
 
                 ArrayList<int[]> messageBlocks = GetMessageBlocks(bitInputStream, false);
-//
+
                 List<Integer> decryptedResult = new ArrayList<>();
-                int i;
                 int[] previousBlock = null;
 
                 for (int[] messageBlock : messageBlocks)
@@ -151,7 +150,7 @@ public class SymmetricCipher {
 
             if(encryption)
             {
-                //add padding to block
+                //add padding to block if doing encryption
                 for (int j = currentBit; j < 48; j++) {
                     messageBits[j] = 0;
                 }
@@ -165,8 +164,6 @@ public class SymmetricCipher {
             {
                 arrayList.add(messageBits);
             }
-
-            currentBit = 0;
         }
 
         return arrayList;
@@ -175,6 +172,7 @@ public class SymmetricCipher {
     private int[] DecryptMessageBits(int[] messageBits) throws IOException {
         var subKeys = cipherKeyScheduler.GetSubKeys();
 
+        //need to go back to front for decryption
         for (int keyIndex = subKeys.length - 1; keyIndex >= 0; keyIndex--) {
             messageBits = SubstituteAndTranspose(messageBits, subKeys[keyIndex]);
         }
@@ -205,6 +203,7 @@ public class SymmetricCipher {
     private void PopulateInitializationVector() {
         for (int i = 0; i < initializationVector.length; i++)
         {
+            //generates either 0 or 1
             initializationVector[i] = ThreadLocalRandom.current().nextInt(0, 1 + 1);
         }
     }
