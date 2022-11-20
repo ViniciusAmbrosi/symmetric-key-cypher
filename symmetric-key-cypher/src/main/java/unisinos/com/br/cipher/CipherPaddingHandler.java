@@ -1,7 +1,8 @@
 package unisinos.com.br.cipher;
 
+import htsjdk.samtools.cram.io.BitInputStream;
+import htsjdk.samtools.cram.io.BitOutputStream;
 import htsjdk.samtools.cram.io.DefaultBitInputStream;
-import htsjdk.samtools.cram.io.DefaultBitOutputStream;
 import htsjdk.samtools.util.RuntimeEOFException;
 import org.apache.commons.lang3.StringUtils;
 import java.io.ByteArrayInputStream;
@@ -12,13 +13,13 @@ public class CipherPaddingHandler
 {
     public void ProcessPaddingForEncryption(
             byte[] fileByteArray,
-            DefaultBitOutputStream encryptedBitOutputStream) throws IOException
+            BitOutputStream encryptedBitOutputStream) throws IOException
     {
         int paddingCount = CalculateRequiredPadding(fileByteArray);
-        String paddingText = StringUtils.leftPad(String.valueOf(paddingCount), 2, '0');
+        String paddingAsText = StringUtils.leftPad(String.valueOf(paddingCount), 2, '0');
 
-        ByteArrayInputStream paddingBytesInput = new ByteArrayInputStream(paddingText.getBytes());
-        try(var paddingBitInputStream = new DefaultBitInputStream(paddingBytesInput))
+        ByteArrayInputStream paddingBytesOutput = new ByteArrayInputStream(paddingAsText.getBytes());
+        try(var paddingBitInputStream = new DefaultBitInputStream(paddingBytesOutput))
         {
             while (true) {
                 try {
@@ -32,11 +33,9 @@ public class CipherPaddingHandler
             System.out.println("Failed when processing padding for input file.");
             throw e;
         }
-
-        System.out.println("");
     }
 
-    public int ProcessPaddingForDecryption(DefaultBitInputStream decryptionBitInputStream)
+    public int ProcessPaddingForDecryption(BitInputStream decryptionBitInputStream)
     {
         StringBuilder paddingHeader = new StringBuilder();
 
@@ -49,7 +48,7 @@ public class CipherPaddingHandler
                 .forEach(s -> paddingBits.append((char) Integer.parseInt(s, 2)));
 
         var paddingString = paddingBits.toString();
-        return Integer.valueOf(paddingString);
+        return Integer.parseInt(paddingString);
     }
 
     private String[] SplitBitsInByteArray(String paddingHeader)

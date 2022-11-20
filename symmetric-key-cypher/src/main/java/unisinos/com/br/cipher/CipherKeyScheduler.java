@@ -1,5 +1,6 @@
 package unisinos.com.br.cipher;
 
+import htsjdk.samtools.cram.io.BitInputStream;
 import htsjdk.samtools.cram.io.DefaultBitInputStream;
 
 import java.io.ByteArrayInputStream;
@@ -72,12 +73,21 @@ public class CipherKeyScheduler {
 
         for (var subKey : subKeys)
         {
+//            ByteArrayInputStream byteArray = new ByteArrayInputStream(key);
+//            BitInputStream bitInputStream = new DefaultBitInputStream(byteArray);
+//
+//            int[] keyBits = new int[messageBits.length];
+//            for (int i = 0; i < 32; i++) {
+//                keyBits[i] = bitInputStream.readBit() ? 1 : 0;
+//            }
+//            bitInputStream.close();
+
             ByteArrayInputStream byteArray = new ByteArrayInputStream(subKey);
             try(var bitInputStream = new DefaultBitInputStream(byteArray))
             {
                 int[] keyBits = new int[48];
 
-                for (int i = 0; i < 48; i++) {
+                for (int i = 0; i < 32; i++) {
                     keyBits[i] = bitInputStream.readBit() ? 1 : 0;
                 }
 

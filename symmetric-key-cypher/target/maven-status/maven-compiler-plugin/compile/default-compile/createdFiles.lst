@@ -1,6 +1,7 @@
-unisinos\com\br\cipher\CipherKeyScheduler.class
 unisinos\com\br\cipher\SymmetricCipher.class
-unisinos\com\br\file\FileUtilsWrapper.class
 unisinos\com\br\cipher\CipherBlockChainHandler.class
+unisinos\com\br\cipher\CipherKeyScheduler.class
+unisinos\com\br\refactor\App.class
+unisinos\com\br\file\FileUtilsWrapper.class
 unisinos\com\br\cipher\CipherPaddingHandler.class
 unisinos\com\br\App.class

@@ -3,10 +3,11 @@ package unisinos.com.br.cipher;
 import htsjdk.samtools.cram.io.DefaultBitInputStream;
 import htsjdk.samtools.cram.io.DefaultBitOutputStream;
 import htsjdk.samtools.util.RuntimeEOFException;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -15,53 +16,50 @@ import java.util.concurrent.ThreadLocalRandom;
 public class SymmetricCipher {
 
     //this vector is used to initialize cipher block chain (CBC), and will be uniquely generated for each operation
-    private int[] initializationVector = new int[48];
-    private CipherPaddingHandler cipherPaddingHandler;
-    private CipherBlockChainHandler cipherBlockChainHandler;
-    private CipherKeyScheduler cipherKeyScheduler;
+    private final int[] initializationVector = new int[48];
+    private final CipherPaddingHandler cipherPaddingHandler;
+    private final CipherBlockChainHandler cipherBlockChainHandler;
+    private final CipherKeyScheduler cipherKeyScheduler;
 
     public SymmetricCipher(String cipherKey) throws IOException
     {
-        PopulateInitializationVector();
         this.cipherPaddingHandler = new CipherPaddingHandler();
         this.cipherBlockChainHandler = new CipherBlockChainHandler();
         this.cipherKeyScheduler = new CipherKeyScheduler();
 
         this.cipherKeyScheduler.ScheduleKeys(cipherKey.getBytes());
+        PopulateInitializationVector();
     }
 
-    public byte[] Encrypt(byte[] fileByteArray)
+    public byte[] Encrypt(byte[] message, String key)
     {
-        ByteArrayOutputStream encryptedByteOutputStream = new ByteArrayOutputStream();
-        try(var encryptedBitOutputStream = new DefaultBitOutputStream(encryptedByteOutputStream))
+        ByteArrayOutputStream bytesOutput = new ByteArrayOutputStream();
+        try(var bitOutputStream = new DefaultBitOutputStream(bytesOutput))
         {
             //adds padding count to header for process on decrypt
-            cipherPaddingHandler.ProcessPaddingForEncryption(fileByteArray, encryptedBitOutputStream);
+            cipherPaddingHandler.ProcessPaddingForEncryption(message, bitOutputStream);
 
             //starts reading file to encrypt
             int[] previousEncryptedBlock = null;
 
-            ByteArrayInputStream byteArray = new ByteArrayInputStream(fileByteArray);
+            ByteArrayInputStream byteArray = new ByteArrayInputStream(message);
             try(var bitInputStream = new DefaultBitInputStream(byteArray))
             {
-                ArrayList<int[]> messageBlocks = GetMessageBlocks(bitInputStream);
+                ArrayList<int[]> messageBlocks = GetMessageBlocks(bitInputStream, true);
 
                 for (int[] messageBlock : messageBlocks)
                 {
                     //do cbc
-                    var cipherBlockChainMessage = cipherBlockChainHandler.ApplyChaining(
+                    int[] cbcResult = cipherBlockChainHandler.ApplyChaining(
                             messageBlock,
                             previousEncryptedBlock == null ? initializationVector : previousEncryptedBlock);
 
                     //do encrypt
-                    previousEncryptedBlock = cipherBlockChainMessage.clone();
-                    for (int[] subKey : cipherKeyScheduler.GetSubKeys()) {
-                        previousEncryptedBlock = SubstituteAndTranspose(previousEncryptedBlock, subKey);
-                    }
+                    previousEncryptedBlock = EncryptMessageBits(cbcResult);
 
                     //write to output stream
-                    for (int j = 0; j < previousEncryptedBlock.length; j++) {
-                        encryptedBitOutputStream.write(previousEncryptedBlock[j] == 1);
+                    for (int encryptedBlock : previousEncryptedBlock) {
+                        bitOutputStream.write(encryptedBlock == 1);
                     }
                 }
             }
@@ -76,35 +74,120 @@ public class SymmetricCipher {
             System.out.println("Failed while encrypting file.");
         }
 
-        return encryptedByteOutputStream.toByteArray();
+        return bytesOutput.toByteArray();
     }
 
-    public String Decrypt(byte[] fileByteArray)
+    public byte[] Decrypt(String file) throws IOException
     {
         ByteArrayOutputStream bytesOutput = new ByteArrayOutputStream();
         try(var bitOutputStream = new DefaultBitOutputStream(bytesOutput))
         {
-            ByteArrayInputStream byteArray = new ByteArrayInputStream(fileByteArray);
-
+            ByteArrayInputStream byteArray = new ByteArrayInputStream(Files.readAllBytes(Paths.get(file)));
             try(var bitInputStream = new DefaultBitInputStream(byteArray))
             {
-                //reads two bytes from the header to fetch information added during encryption
                 int paddingAmount = cipherPaddingHandler.ProcessPaddingForDecryption(bitInputStream);
 
-            }
-            catch (Exception e)
-            {
-                System.out.println("Failed while reading source file.");
-                throw e;
+                ArrayList<int[]> messageBlocks = GetMessageBlocks(bitInputStream, false);
+//
+                List<Integer> decryptedResult = new ArrayList<>();
+                int i;
+                int[] previousBlock = null;
+
+                for (int[] messageBlock : messageBlocks)
+                {
+                    System.out.println("\nMessage block");
+                    Arrays.stream(messageBlock).forEach(System.out::print);
+
+                    //decrypts - have to start from ending to decrypt
+                    int[] result = DecryptMessageBits(messageBlock);
+
+                    System.out.println("\nDecrypted Message");
+                    Arrays.stream(result).forEach(System.out::print);
+
+                    //do cbc
+                    var cipherBlockChainMessage = cipherBlockChainHandler.ApplyChaining(result, previousBlock == null ? initializationVector : previousBlock);
+
+                    previousBlock = new int[messageBlock.length];
+                    for (int j = 0; j < messageBlock.length; j++) {
+                        previousBlock[j] = messageBlock[j];
+                    }
+
+                    //load previous encrypted block for next operation
+                    for (int j = 0; j < cipherBlockChainMessage.length; j++) {
+                        decryptedResult.add(cipherBlockChainMessage[j]);
+                    }
+                }
+
+                for (int j = 0; j < decryptedResult.size() - paddingAmount; j++) {
+                    bitOutputStream.write(decryptedResult.get(j) == 1);
+                }
+
+                return bytesOutput.toByteArray();
             }
         }
-        catch (Exception e)
+    }
+
+    private ArrayList<int[]>  GetMessageBlocks(DefaultBitInputStream inputStream, boolean encryption) throws IOException
+    {
+        ArrayList<int[]> arrayList = new ArrayList<>();
+
+        int currentBit = 0;
+        boolean hasData = true;
+
+        while(hasData)
         {
-            System.out.println("Failed while decrypting file.");
+            int[] messageBits = new int[48];
+
+            for (currentBit = 0; currentBit < 48; currentBit++) {
+                try
+                {
+                    messageBits[currentBit] = inputStream.readBit() ? 1 : 0;
+                }
+                catch (RuntimeEOFException ex)
+                {
+                    break;
+                }
+            }
+
+            if(encryption)
+            {
+                //add padding to block
+                for (int j = currentBit; j < 48; j++) {
+                    messageBits[j] = 0;
+                }
+            }
+
+            if(currentBit < 48)
+            {
+                hasData = false;
+            }
+            if(currentBit != 0)
+            {
+                arrayList.add(messageBits);
+            }
+
+            currentBit = 0;
         }
 
-        //return bytesOutput.toByteArray();
-        return "";
+        return arrayList;
+    }
+
+    private int[] DecryptMessageBits(int[] messageBits) throws IOException {
+        var subKeys = cipherKeyScheduler.GetSubKeys();
+
+        for (int keyIndex = subKeys.length - 1; keyIndex >= 0; keyIndex--) {
+            messageBits = SubstituteAndTranspose(messageBits, subKeys[keyIndex]);
+        }
+
+        return messageBits;
+    }
+
+    private int[] EncryptMessageBits(int[] messageBits) throws IOException {
+        for (int[] subKey : cipherKeyScheduler.GetSubKeys()) {
+            messageBits = SubstituteAndTranspose(messageBits, subKey);
+        }
+
+        return messageBits;
     }
 
     private int[] SubstituteAndTranspose(int[] messageBits, int[] key)
@@ -119,48 +202,10 @@ public class SymmetricCipher {
         return xorResult;
     }
 
-    //Get message blocks for encryption
-    private ArrayList<int[]>  GetMessageBlocks(DefaultBitInputStream inputStream) throws IOException
-    {
-        ArrayList<int[]> arrayList = new ArrayList<>();
-
-        int currentBit = 0;
-        boolean hasData = true;
-
-        while(hasData)
-        {
-            int[] messageBits = new int[48];
-
-            for (currentBit = 0; currentBit < 48; currentBit++) {
-                if(inputStream.available() > 0)
-                {
-                    messageBits[currentBit] = inputStream.readBit() ? 1 : 0;
-                }
-                else
-                {
-                    hasData = false;
-                    break;
-                }
-            }
-
-            //add padding to block
-            for (int j = currentBit; j < 48; j++) {
-                messageBits[j] = 0;
-            }
-
-            currentBit = 0;
-            arrayList.add(messageBits);
-        }
-
-        return arrayList;
-    }
-
-    //randomly generates values for initialization vector
-    private void PopulateInitializationVector()
-    {
+    private void PopulateInitializationVector() {
         for (int i = 0; i < initializationVector.length; i++)
         {
-            initializationVector[i] = ThreadLocalRandom.current().nextInt(0, 100 + 1);
+            initializationVector[i] = ThreadLocalRandom.current().nextInt(0, 1 + 1);
         }
     }
 }
