@@ -1,8 +1,6 @@
 package unisinos.com.br.cipher;
 
-import htsjdk.samtools.cram.io.BitInputStream;
 import htsjdk.samtools.cram.io.DefaultBitInputStream;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -12,7 +10,7 @@ import java.util.Collections;
 public class CipherKeyScheduler {
 
     private static final String SPECIAL_CHAR_REGEX = "[^a-zA-Z0-9]";
-    private static final byte[][] subKeys = new byte[4][];
+    private static final byte[][] subKeys = new byte[8][];
 
     //will be used to apply permutation on keys with size of 4 bytes / 32 bits. Random for each execution.
     private final ArrayList<Integer> keyPermutation;
@@ -29,10 +27,10 @@ public class CipherKeyScheduler {
             bitPositions.add(i);
         }
 
-        keyPermutation = new ArrayList<Integer>(bitPositions);
+        keyPermutation = new ArrayList<>(bitPositions);
         Collections.shuffle(keyPermutation);
 
-        subKeyPermutation = new ArrayList<Integer>(bitPositions);
+        subKeyPermutation = new ArrayList<>(bitPositions);
         Collections.shuffle(subKeyPermutation);
     }
 
@@ -69,19 +67,10 @@ public class CipherKeyScheduler {
     public int[][] GetSubKeys() throws IOException
     {
         int subKeyIndex = 0;
-        int[][] subKeyBits = new int[4][32];
+        int[][] subKeyBits = new int[8][32];
 
         for (var subKey : subKeys)
         {
-//            ByteArrayInputStream byteArray = new ByteArrayInputStream(key);
-//            BitInputStream bitInputStream = new DefaultBitInputStream(byteArray);
-//
-//            int[] keyBits = new int[messageBits.length];
-//            for (int i = 0; i < 32; i++) {
-//                keyBits[i] = bitInputStream.readBit() ? 1 : 0;
-//            }
-//            bitInputStream.close();
-
             ByteArrayInputStream byteArray = new ByteArrayInputStream(subKey);
             try(var bitInputStream = new DefaultBitInputStream(byteArray))
             {

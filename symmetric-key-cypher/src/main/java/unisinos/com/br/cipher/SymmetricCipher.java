@@ -6,10 +6,7 @@ import htsjdk.samtools.util.RuntimeEOFException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -94,24 +91,19 @@ public class SymmetricCipher {
 
                 for (int[] messageBlock : messageBlocks)
                 {
-                    System.out.println("\nMessage block");
-                    Arrays.stream(messageBlock).forEach(System.out::print);
-
                     //decrypts - have to start from ending to decrypt
                     int[] result = DecryptMessageBits(messageBlock);
-
-                    System.out.println("\nDecrypted Message");
-                    Arrays.stream(result).forEach(System.out::print);
 
                     //do cbc
                     var cipherBlockChainMessage = cipherBlockChainHandler.ApplyChaining(result, previousBlock == null ? initializationVector : previousBlock);
 
+                    //load previous encrypted block for next operation
                     previousBlock = new int[messageBlock.length];
                     for (int j = 0; j < messageBlock.length; j++) {
                         previousBlock[j] = messageBlock[j];
                     }
 
-                    //load previous encrypted block for next operation
+                    //load decryptResult
                     for (int j = 0; j < cipherBlockChainMessage.length; j++) {
                         decryptedResult.add(cipherBlockChainMessage[j]);
                     }
@@ -126,7 +118,7 @@ public class SymmetricCipher {
         }
     }
 
-    private ArrayList<int[]>  GetMessageBlocks(DefaultBitInputStream inputStream, boolean encryption) throws IOException
+    private ArrayList<int[]>  GetMessageBlocks(DefaultBitInputStream inputStream, boolean encryption)
     {
         ArrayList<int[]> arrayList = new ArrayList<>();
 
