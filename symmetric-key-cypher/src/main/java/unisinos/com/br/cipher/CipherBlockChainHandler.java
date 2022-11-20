@@ -11,6 +11,7 @@ public class CipherBlockChainHandler
             //apply xor between current and previously encrypted message or initialization vector
             cbcResult[i] = messageBlock[i] ^ previousBlock[i];
         }
+
         return cbcResult;
     }
 }

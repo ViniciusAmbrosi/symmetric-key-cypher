@@ -2,11 +2,14 @@ package unisinos.com.br.cipher;
 
 import htsjdk.samtools.cram.io.DefaultBitInputStream;
 import htsjdk.samtools.cram.io.DefaultBitOutputStream;
+import htsjdk.samtools.util.RuntimeEOFException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class SymmetricCipher {
@@ -27,7 +30,7 @@ public class SymmetricCipher {
         this.cipherKeyScheduler.ScheduleKeys(cipherKey.getBytes());
     }
 
-    public byte[] Encrypt(byte[] fileByteArray, String cipherKey)
+    public byte[] Encrypt(byte[] fileByteArray)
     {
         ByteArrayOutputStream encryptedByteOutputStream = new ByteArrayOutputStream();
         try(var encryptedBitOutputStream = new DefaultBitOutputStream(encryptedByteOutputStream))
@@ -46,14 +49,20 @@ public class SymmetricCipher {
                 for (int[] messageBlock : messageBlocks)
                 {
                     //do cbc
-                    cipherBlockChainHandler.ApplyChaining(
+                    var cipherBlockChainMessage = cipherBlockChainHandler.ApplyChaining(
                             messageBlock,
                             previousEncryptedBlock == null ? initializationVector : previousEncryptedBlock);
 
                     //do encrypt
-                    previousEncryptedBlock = new int[24];
+                    previousEncryptedBlock = cipherBlockChainMessage.clone();
+                    for (int[] subKey : cipherKeyScheduler.GetSubKeys()) {
+                        previousEncryptedBlock = SubstituteAndTranspose(previousEncryptedBlock, subKey);
+                    }
 
                     //write to output stream
+                    for (int j = 0; j < previousEncryptedBlock.length; j++) {
+                        encryptedBitOutputStream.write(previousEncryptedBlock[j] == 1);
+                    }
                 }
             }
             catch (Exception e)
@@ -70,9 +79,44 @@ public class SymmetricCipher {
         return encryptedByteOutputStream.toByteArray();
     }
 
-    public String Decrypt()
+    public String Decrypt(byte[] fileByteArray)
     {
-        return "1 2";
+        ByteArrayOutputStream bytesOutput = new ByteArrayOutputStream();
+        try(var bitOutputStream = new DefaultBitOutputStream(bytesOutput))
+        {
+            ByteArrayInputStream byteArray = new ByteArrayInputStream(fileByteArray);
+
+            try(var bitInputStream = new DefaultBitInputStream(byteArray))
+            {
+                //reads two bytes from the header to fetch information added during encryption
+                int paddingAmount = cipherPaddingHandler.ProcessPaddingForDecryption(bitInputStream);
+
+            }
+            catch (Exception e)
+            {
+                System.out.println("Failed while reading source file.");
+                throw e;
+            }
+        }
+        catch (Exception e)
+        {
+            System.out.println("Failed while decrypting file.");
+        }
+
+        //return bytesOutput.toByteArray();
+        return "";
+    }
+
+    private int[] SubstituteAndTranspose(int[] messageBits, int[] key)
+    {
+        int[] xorResult = new int[messageBits.length];
+
+        for (int i = 0; i < xorResult.length; i++)
+        {
+            xorResult[i] = messageBits[i] ^ key[i];
+        }
+
+        return xorResult;
     }
 
     //Get message blocks for encryption

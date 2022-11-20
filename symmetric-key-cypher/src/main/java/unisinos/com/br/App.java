@@ -42,10 +42,10 @@ public class App
         //apply cypher with fileByteArray && cipherKey
         SymmetricCipher symmetricCipher = new SymmetricCipher(cipherKey);
 
-        var encryptResult = symmetricCipher.Encrypt(fileByteArray,cipherKey);
+        var encryptResult = symmetricCipher.Encrypt(fileByteArray);
         FILE_UTILS_WRAPPER.WriteByteArrayToFile("encryptResult", encryptResult);
 
-        var decryptResult = symmetricCipher.Decrypt();
+        var decryptResult = symmetricCipher.Decrypt(encryptResult);
         FILE_UTILS_WRAPPER.WriteToFile("decryptResult", decryptResult);
     }
 }

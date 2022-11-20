@@ -65,6 +65,29 @@ public class CipherKeyScheduler {
         }
     }
 
+    public int[][] GetSubKeys() throws IOException
+    {
+        int subKeyIndex = 0;
+        int[][] subKeyBits = new int[4][32];
+
+        for (var subKey : subKeys)
+        {
+            ByteArrayInputStream byteArray = new ByteArrayInputStream(subKey);
+            try(var bitInputStream = new DefaultBitInputStream(byteArray))
+            {
+                int[] keyBits = new int[48];
+
+                for (int i = 0; i < 48; i++) {
+                    keyBits[i] = bitInputStream.readBit() ? 1 : 0;
+                }
+
+                subKeyBits[subKeyIndex++] = keyBits;
+            }
+        }
+
+        return subKeyBits;
+    }
+
     private String GenerateSubKey(String[] permutedKeyBits)
     {
         String permutedKey = Arrays.toString(permutedKeyBits).replaceAll(SPECIAL_CHAR_REGEX, "");
